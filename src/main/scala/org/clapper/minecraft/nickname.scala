@@ -1,18 +1,26 @@
 package org.clapper.minecraft.nickname
 
-import jcdc.pluginfactory.{ScalaPlugin, CommandPlugin, ListenerPlugin,
-                           ListenersPlugin}
+import jcdc.pluginfactory.{ScalaPlugin, CommandPlugin, ListenersPlugin}
 import jcdc.pluginfactory.Listeners._
 
 import org.bukkit.event.{EventHandler, Listener}
-import org.bukkit.event.player.{PlayerJoinEvent, PlayerMoveEvent,
-                                AsyncPlayerChatEvent}
+import org.bukkit.event.player.AsyncPlayerChatEvent
 import org.bukkit.entity.Player
 import org.bukkit.metadata.MetadataValue
-import org.bukkit.plugin.Plugin
+
+import org.clapper.minecraft.lib.{PluginLogging, Logging}
 
 import scala.language.implicitConversions
 import scala.collection.JavaConverters._
+import scala.collection.mutable.{Map => MutableMap}
+
+import java.io._
+import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.Some
+import scala.util.Success
+import java.util.logging.Logger
+import org.bukkit.scheduler.BukkitRunnable
 
 private class EnrichedPlayer(val player: Player) {
   def notice(message: String) = {
@@ -25,27 +33,79 @@ private object Implicits {
   implicit def enrichedPlayerToPlayer(e: EnrichedPlayer) = e.player
 }
 
-trait NicknameConstants {
-  val CAN_CHANGE_PERM = "nickname.canchange"
-  val METADATA_KEY    = "nickname"
+object NicknameConstants {
+  val CanChangePerm     = "nickname.canchange"
+  val DataFile          = "nicknames.dat"
+
+  // There are 20 Minecraft ticks per second. See
+  // http://minecraft.gamepedia.com/Tick
+  val TicksPerSecond = 20
+  val TicksPerMinute = 20 * 60
+
+  val SchedulerInterval = 5 * TicksPerMinute
 }
 
-trait Logging {
-  self: ScalaPlugin =>
+class NicknameData(dataFolder: File, val logger: Logger) extends Logging {
 
-  private lazy val logger = getLogger()
+  // Map of playerName -> nickname values.
+  private val nicknameMap = MutableMap.empty[String, String]
+  private val DataFile    = new File(dataFolder, NicknameConstants.DataFile)
 
-  def logMessage(msg: String) = {
-    logger.info(s"[$name] $msg")
+  def nicknameFor(player: Player): Option[String] = nicknameMap.get(player.name)
+
+  def saveNickname(player: Player, nickname: String): Unit = {
+    nicknameMap += player.name -> nickname
+  }
+
+  def removeNickname(player: Player): Unit = {
+    nicknameMap -= player.name
+  }
+
+  def save(): Unit = {
+    def doSave(): Try[Boolean] = {
+      Try {
+        logDebug(s"Saving nickname data to ${DataFile.getPath}")
+        val out = new ObjectOutputStream(new FileOutputStream(DataFile))
+        out.writeObject(nicknameMap)
+        out.close()
+        true
+      }
+    }
+
+    doSave() match {
+      case Success(ok) => logMessage("Saved nickname data.")
+      case Failure(ex) => logError(s"Failed to save nickname data: ${ex}")
+    }
+  }
+
+  def load(): Unit = {
+    def doLoad(): Try[Boolean] = {
+      Try {
+        if (DataFile.exists) {
+          logDebug(s"Reading nicknames from ${DataFile.getPath}")
+          val in = new ObjectInputStream(new FileInputStream(DataFile))
+          val map = in.readObject().asInstanceOf[MutableMap[String, String]]
+          in.close()
+          nicknameMap.clear()
+          nicknameMap ++= map
+        }
+        true
+      }
+    }
+
+    doLoad() match {
+      case Success(ok) => logMessage("Loaded nickname data.")
+      case Failure(ex) => logError(s"Failed to load nickname data: ${ex}")
+    }
   }
 }
 
-trait NicknamePermissions extends NicknameConstants with Logging {
+trait NicknamePermissions extends Logging {
   self: ScalaPlugin =>
 
   def ifPermittedToChangeName(player: Player)(code: => Unit) = {
-    if ((! player.isPermissionSet(CAN_CHANGE_PERM)) ||
-        player.hasPermission(CAN_CHANGE_PERM)) {
+    if ((! player.isPermissionSet(NicknameConstants.CanChangePerm)) ||
+        player.hasPermission(NicknameConstants.CanChangePerm)) {
       code
     }
 
@@ -56,39 +116,27 @@ trait NicknamePermissions extends NicknameConstants with Logging {
   }
 }
 
-case class NicknameMetadata(name: String, plugin: Plugin) extends MetadataValue {
-  def asBoolean       = false
-  def asByte          = 0
-  def asDouble        = 0.0
-  def asFloat         = 0.0f
-  def asInt           = 0
-  def asLong          = 0L
-  def asShort         = 0.asInstanceOf[Short]
-  def asString        = name
-  def getOwningPlugin = plugin
-  def invalidate      = ()
-  def value           = name
-}
-
 class NicknamePlugin
   extends ListenersPlugin
   with    CommandPlugin
-  with    Logging
+  with    PluginLogging
   with    NicknamePermissions {
+
+  private lazy val nicknameData = new NicknameData(this.getDataFolder, logger)
 
   import Implicits._
 
   val listeners = List(
     OnPlayerJoin { (player, event) =>
       logMessage(s"${player.name} logged in.")
-      player.getMetadata(METADATA_KEY).asScala.toList match {
-        case Nil =>
-        logMessage(s"${player.name} has no saved nickname.")
+      nicknameData.nicknameFor(player) match {
+        case None =>
+          logMessage(s"${player.name} has no saved nickname.")
 
-        case meta :: whatever =>
-          val name = meta.asInstanceOf[MetadataValue].asString
-          logMessage(s"${player.name} has saved nickname: $name")
-          setName(player, Some(name))
+        case Some(nickname) => {
+          logMessage(s"${player.name} has saved nickname: $nickname")
+          setName(player, Some(nickname))
+        }
       }
     },
 
@@ -132,24 +180,60 @@ class NicknamePlugin
 
   override def onEnable(): Unit = {
     super.onEnable()
-    logMessage("I'm alive! Foo")
+    val dataFolder = this.getDataFolder
+    if (! dataFolder.exists) {
+      logMessage(s"Creating ${dataFolder}")
+      dataFolder.mkdirs()
+    }
+
+    nicknameData.load()
+    DataCheckpointTask.initialize(this, this.nicknameData, this.logger)
+  }
+
+  override def onDisable: Unit = {
+    super.onDisable()
+    nicknameData.save()
   }
 
   private def setName(player: Player, nameOpt: Option[String]): Unit = {
     nameOpt match {
-      case None =>
+      case None => {
         player.setDisplayName(null)
         player.setPlayerListName(null)
         player.setCustomName(null)
-        player.removeMetadata(METADATA_KEY, this)
+        nicknameData.removeNickname(player)
+      }
 
-      case Some(name) =>
+      case Some(name) => {
         player.setDisplayName(name)
         player.setPlayerListName(name)
         player.setCustomName(name)
-        player.setMetadata(METADATA_KEY, NicknameMetadata(name, this))
+        nicknameData.saveNickname(player, name)
+      }
     }
+
+    nicknameData.save()
   }
 
   private def getName(player: Player) = player.getDisplayName
+}
+
+class DataCheckpointTask(data: NicknameData, val logger: Logger)
+  extends BukkitRunnable
+  with Logging {
+
+  def run: Unit = {
+    data.save()
+  }
+}
+
+object DataCheckpointTask {
+  def initialize(plugin: ScalaPlugin, data: NicknameData, logger: Logger) = {
+    import NicknameConstants.SchedulerInterval
+
+    logger.info("Spawning checkpoint task.")
+    new DataCheckpointTask(data, logger).runTaskTimer(plugin,
+                                                      0,
+                                                      SchedulerInterval)
+  }
 }
