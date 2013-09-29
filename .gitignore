@@ -1,3 +1,6 @@
 .envrc
 .gradle
 build
+downloads/*.jar
+.idea
+*.iml

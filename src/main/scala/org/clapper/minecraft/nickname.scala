@@ -1,10 +1,12 @@
 package org.clapper.minecraft.nickname
 
-import jcdc.pluginfactory.{ScalaPlugin, CommandPlugin, ListenerPlugin, ListenersPlugin}
+import jcdc.pluginfactory.{ScalaPlugin, CommandPlugin, ListenerPlugin,
+                           ListenersPlugin}
 import jcdc.pluginfactory.Listeners._
 
 import org.bukkit.event.{EventHandler, Listener}
-import org.bukkit.event.player.{PlayerJoinEvent, PlayerMoveEvent}
+import org.bukkit.event.player.{PlayerJoinEvent, PlayerMoveEvent,
+                                AsyncPlayerChatEvent}
 import org.bukkit.entity.Player
 import org.bukkit.metadata.MetadataValue
 import org.bukkit.plugin.Plugin
@@ -88,6 +90,21 @@ class NicknamePlugin
           logMessage(s"${player.name} has saved nickname: $name")
           setName(player, Some(name))
       }
+    },
+
+    new Listener {
+      @EventHandler def on(e: AsyncPlayerChatEvent): Unit = {
+        val player = e.getPlayer
+        // §r<%1$s> %2$s
+        val format = e.getFormat
+        val newFormat = if (format.indexOf("%1$s") >= 0) {
+          format.replace("%1$s", player.getPlayerListName)
+        }
+        else {
+          " <" + player.getPlayerListName + "> %2$s"
+        }
+        e.setFormat(newFormat)
+      }
     }
   )
 
@@ -123,11 +140,13 @@ class NicknamePlugin
       case None =>
         player.setDisplayName(null)
         player.setPlayerListName(null)
+        player.setCustomName(null)
         player.removeMetadata(METADATA_KEY, this)
 
       case Some(name) =>
         player.setDisplayName(name)
         player.setPlayerListName(name)
+        player.setCustomName(name)
         player.setMetadata(METADATA_KEY, NicknameMetadata(name, this))
     }
   }

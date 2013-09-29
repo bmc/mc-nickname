@@ -1,7 +1,9 @@
 apply plugin: 'scala'
 apply plugin: 'java'
+apply plugin: 'idea'
 
 import groovy.io.FileType
+import java.util.regex.Pattern
 
 defaultTasks 'build'
 //defaultTasks 'compileScala'
@@ -10,33 +12,81 @@ repositories {
     mavenCentral()
 }
 
-def compileLibJars = files(getFiles("lib"), getFiles("package-extras"))
+def DEFAULT_CRAFTBUKKIT_URL = 'http://dl.bukkit.org/downloads/craftbukkit/get/02356_1.6.4-R0.1/craftbukkit-dev.jar'
+def CRAFTBUKKIT_URL = Util.env('CRAFTBUKKIT_URL', DEFAULT_CRAFTBUKKIT_URL)
+
+def DEFAULT_BUKKIT_URL = 'http://dl.bukkit.org/downloads/bukkit/get/02355_1.6.4-R0.1/bukkit-dev.jar'
+def BUKKIT_URL = Util.env('BUKKIT_URL', DEFAULT_BUKKIT_URL)
+
+def DEFAULT_MCLIB_URL = 'http://hydra/~bmc/src/mystuff/scala/minecraft/mc-lib/build/libs/mclib.jar'
+def MCLIB_URL = Util.env('MCLIB_URL', DEFAULT_MCLIB_URL)
+
+def BUKKIT_JAR = file('downloads/bukkit.jar')
+def CRAFTBUKKIT_JAR = file('downloads/craftbukkit.jar')
+def MCLIB_JAR = file('downloads/mclib.jar')
+
+def compileLibJars = files(Util.getJars("lib"))
 
 // See http://sethrylan.org/2013/07/02/scala-gradle-scalaconsole.html
 
 dependencies {
-    runtime "org.scala-lang:scala-library:2.10.2"
-    runtime "org.scala-lang:jline:2.10.2"
-    compile "org.scala-lang:scala-compiler:2.10.2"
-    compile compileLibJars
+  runtime "org.scala-lang:scala-library:2.10.2"
+  runtime "org.scala-lang:jline:2.10.2"
+  compile "org.scala-lang:scala-compiler:2.10.2"
+  compile compileLibJars
 }
 
+// --------------------------------------------------------------------------
+// Tasks
+// --------------------------------------------------------------------------
 
-FileCollection distPackage = files(getFiles("package-extras"),
-                                   'build/libs/nickname.jar')
+FileCollection distPackage = files(Util.getJars("lib"), 'build/libs/CreatureCatcher.jar')
 tasks.withType(ScalaCompile) {
-    scalaCompileOptions.useAnt = false
-    scalaCompileOptions.additionalParameters = ["-feature"]
+  scalaCompileOptions.useAnt = false
+  scalaCompileOptions.additionalParameters = ["-feature"]
+
+  configure(scalaCompileOptions.forkOptions) {
+    memoryMaximumSize = '1g'
+  }
+
+  classpath += files(Util.getJars("lib"), BUKKIT_JAR, CRAFTBUKKIT_JAR, MCLIB_JAR)
 }
 
-tasks.withType(ScalaCompile) {
-    configure(scalaCompileOptions.forkOptions) {
-        memoryMaximumSize = '1g'
-    }
+compileScala.dependsOn('download')
+build.dependsOn('download')
+
+task clobber(dependsOn: 'clean') << {
+  Util.cleanJars("downloads")
 }
 
 task zip(type: Zip, dependsOn: 'jar') {
-    from  distPackage
+  from distPackage
+}
+
+task download(dependsOn: ['craftbukkitJar', 'bukkitJar', 'mclibJar'])
+
+task craftbukkitJar {
+  ext.outputFile = CRAFTBUKKIT_JAR
+  outputs.file outputFile
+  doLast {
+    Util.downloadFile(CRAFTBUKKIT_URL, outputFile)
+  }
+}
+
+task bukkitJar {
+  ext.outputFile = BUKKIT_JAR
+  outputs.file outputFile
+  doLast {
+    Util.downloadFile(BUKKIT_URL, outputFile)
+  }
+}
+
+task mclibJar {
+  ext.outputFile = MCLIB_JAR
+  outputs.file outputFile
+  doLast {
+    Util.downloadFile(MCLIB_URL, outputFile)
+  }
 }
 
 // See http://sethrylan.org/2013/07/02/scala-gradle-scalaconsole.html
@@ -45,11 +95,75 @@ scalaConsole.dependsOn(build)
 scalaConsole.classpath += sourceSets.main.output
 task console(dependsOn: "scalaConsole")
 
-def getFiles(String path) {
-  def dir = new File(path)
-  def list = []
-  dir.eachFileRecurse(FileType.FILES) { file ->
-      list << file
+// --------------------------------------------------------------------------
+// Task re-configurations
+// --------------------------------------------------------------------------
+
+jar {
+  manifest {
+    def manifestCP = ['../lib/mclib.jar',
+                      'scala-library-plugin-2.10.0.jar',
+                      'scala-plugin-api_2.10-0.3.1.jar',
+                      '../craftbukkit.jar']
+    attributes 'Class-Path': manifestCP.join(" ")
   }
-  return list
+}
+
+// --------------------------------------------------------------------------
+// Helper functions
+// --------------------------------------------------------------------------
+
+public class Util {
+
+  static def JAR_PATTERN = ~/.*\.jar$/
+
+  public static def getJars(String path) {
+    return getFiles(path, JAR_PATTERN)
+  }
+
+  public static def getFiles(String path, Pattern pattern) {
+    def dir = new File(path)
+    def list = []
+    dir.eachFileRecurse(FileType.FILES) { file ->
+      if (file.name =~ pattern) {
+        list << file
+      }
+    }
+    return list
+  }
+
+  public static def cleanDirectory(String path, Pattern pattern) {
+    def dir = new File(path)
+    if (dir.exists()) {
+      dir.eachFileRecurse(FileType.FILES) { file ->
+        if (file.name =~ pattern) {
+          println "rm ${file}"
+          file.delete()
+        }
+      }
+    }
+  }
+
+  public static def cleanJars(String path) {
+    cleanDirectory(path, JAR_PATTERN)
+  }
+
+  // See http://stackoverflow.com/questions/17123606
+  public static def downloadFile(String url, File target) {
+    def targetDir = target.getParentFile()
+    if (! targetDir.exists()) {
+      println "Creating directory ${targetDir.getPath()}"
+      targetDir.mkdirs()
+    }
+
+    if (! target.exists()) {
+      println "${target.getPath()} doesn't exist. Downloading it from ${url}"
+      new URL(url).withInputStream { i -> target.withOutputStream { it << i }}
+    }
+  }
+
+  public static def env(String var, String defaultValue) {
+    def value = System.getenv()[var]
+    return value ? value : defaultValue
+  }
 }
