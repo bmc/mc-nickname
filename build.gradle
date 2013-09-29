@@ -20,13 +20,12 @@ repositories {
 }
 
 def compileLibJars = files(Util.getJars("lib"))
+
 ext.mclibVersion = "0.2"
 ext.home = System.properties['user.home']
 ext.mavenLocal = "${ext.home}/.m2/repository"
 ext.ivyLocal = "${ext.home}/.ivy2/local"
 ext.ivyCache = "${ext.home}/.ivy2/cache"
-
-// See http://sethrylan.org/2013/07/02/scala-gradle-scalaconsole.html
 
 dependencies {
   runtime "org.scala-lang:scala-library:2.10.2"
@@ -55,7 +54,7 @@ tasks.withType(ScalaCompile) {
     memoryMaximumSize = '1g'
   }
 
-  //classpath += files(Util.getJars("lib"), MCLIB_JAR)
+  classpath += files(Util.getJars("lib")
 }
 
 task zip(type: Zip, dependsOn: 'jar') {
