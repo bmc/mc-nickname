@@ -7,20 +7,23 @@ display names. Written primarily to play around with Josh Cough's
 * Check out the repo.
 * You'll need a recent version of [Gradle](http://gradle.org)
 * Run: `gradle zip`
-* The resulting distribution is in `build/distributions/nickname.zip`.
+* The resulting distribution is in `build/distributions/mc-nickname.zip`.
 
 ## Installation
 
-Unpack the `nickname.zip` file you built above. The zip contains three jar
-files:
+Unpack the `mc-nickname.zip` file you built above. Unzipping will result in
+an `mc-nickname` subdirectory containing numerous jar files. Assuming the
+top-level directory of your Minecraft world is `$WORLD`, issue the following
+commands. (These commands are suitable for Unix and Mac systems. If you're
+on Windows, either use the appropriate Windows commands or run the following
+commands from a [Cygwin](http://www.cygwin.com/) shell.)
 
-- The Scala Library plugin, which provides the Scala runtime library to
-  Scala Bukkit plugins.
-- The Scala Plugin API jar file.
-- `nickname.jar`, which contains the code for this plugin.
+    $ cd mc-nickname
+    $ mkdir -p $WORLD/lib
+    $ cp mclib-0.2.jar scala-library-2.10.jar $WORLD/lib
+    $ cp scala-library-plugin*.jar scala-plugin-api*.jar mc-nickname.jar $WORLD/plugins
 
-Copy all three jars to your server's `plugins` directory, adjust any
-permissions (see below), and restart or reload your server.
+Then, adjust any permissions (see below) and reload or restart your server.
 
 ## Permissions
 

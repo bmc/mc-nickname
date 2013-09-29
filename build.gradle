@@ -9,30 +9,31 @@ defaultTasks 'build'
 //defaultTasks 'compileScala'
 
 repositories {
-    mavenCentral()
+  mavenCentral()
+  mavenLocal()
+  maven {
+    url "http://repo.bukkit.org/content/repositories/snapshots/"
+  }
+  maven {
+    url "http://maven.clapper.org/"
+  }
 }
 
-def DEFAULT_CRAFTBUKKIT_URL = 'http://dl.bukkit.org/downloads/craftbukkit/get/02356_1.6.4-R0.1/craftbukkit-dev.jar'
-def CRAFTBUKKIT_URL = Util.env('CRAFTBUKKIT_URL', DEFAULT_CRAFTBUKKIT_URL)
-
-def DEFAULT_BUKKIT_URL = 'http://dl.bukkit.org/downloads/bukkit/get/02355_1.6.4-R0.1/bukkit-dev.jar'
-def BUKKIT_URL = Util.env('BUKKIT_URL', DEFAULT_BUKKIT_URL)
-
-def DEFAULT_MCLIB_URL = 'http://hydra/~bmc/src/mystuff/scala/minecraft/mc-lib/build/libs/mclib.jar'
-def MCLIB_URL = Util.env('MCLIB_URL', DEFAULT_MCLIB_URL)
-
-def BUKKIT_JAR = file('downloads/bukkit.jar')
-def CRAFTBUKKIT_JAR = file('downloads/craftbukkit.jar')
-def MCLIB_JAR = file('downloads/mclib.jar')
-
 def compileLibJars = files(Util.getJars("lib"))
+ext.mclibVersion = "0.2"
+ext.home = System.properties['user.home']
+ext.mavenLocal = "${ext.home}/.m2/repository"
+ext.ivyLocal = "${ext.home}/.ivy2/local"
+ext.ivyCache = "${ext.home}/.ivy2/cache"
 
 // See http://sethrylan.org/2013/07/02/scala-gradle-scalaconsole.html
 
 dependencies {
   runtime "org.scala-lang:scala-library:2.10.2"
-  runtime "org.scala-lang:jline:2.10.2"
   compile "org.scala-lang:scala-compiler:2.10.2"
+  compile "org.bukkit:bukkit:1.6.4-R0.1-SNAPSHOT"
+  compile "org.bukkit:craftbukkit:1.6.4-R0.1-SNAPSHOT"
+  compile "org.clapper.minecraft:mclib:${ext.mclibVersion}"
   compile compileLibJars
 }
 
@@ -40,7 +41,12 @@ dependencies {
 // Tasks
 // --------------------------------------------------------------------------
 
-FileCollection distPackage = files(Util.getJars("lib"), 'build/libs/CreatureCatcher.jar')
+FileCollection distPackage = files(
+  Util.getJars("lib"),
+  file('build/libs/CreatureCatcher.jar'),
+  file("${ext.mavenLocal}/org/clapper/minecraft/mclib/${ext.mclibVersion}/mclib-${ext.mavenLocal}.jar")
+)
+
 tasks.withType(ScalaCompile) {
   scalaCompileOptions.useAnt = false
   scalaCompileOptions.additionalParameters = ["-feature"]
@@ -49,44 +55,42 @@ tasks.withType(ScalaCompile) {
     memoryMaximumSize = '1g'
   }
 
-  classpath += files(Util.getJars("lib"), BUKKIT_JAR, CRAFTBUKKIT_JAR, MCLIB_JAR)
-}
-
-compileScala.dependsOn('download')
-build.dependsOn('download')
-
-task clobber(dependsOn: 'clean') << {
-  Util.cleanJars("downloads")
+  //classpath += files(Util.getJars("lib"), MCLIB_JAR)
 }
 
 task zip(type: Zip, dependsOn: 'jar') {
-  from distPackage
-}
 
-task download(dependsOn: ['craftbukkitJar', 'bukkitJar', 'mclibJar'])
+  archiveName "mc-nickname.zip"
+  includeEmptyDirs false
 
-task craftbukkitJar {
-  ext.outputFile = CRAFTBUKKIT_JAR
-  outputs.file outputFile
-  doLast {
-    Util.downloadFile(CRAFTBUKKIT_URL, outputFile)
+  ext.mavenLocal = project.ext.mavenLocal
+  ext.ivyLocal = project.ext.ivyLocal
+  ext.ivyCache = project.ext.ivyCache
+  ext.mclibVersion = project.ext.mclibVersion
+  ext.jcdc = "${ext.ivyLocal}/jcdc.pluginfactory"
+
+  destinationDir file("build/distributions")
+
+  from fileTree('build/libs/'), {
+    include "*.jar"
   }
-}
-
-task bukkitJar {
-  ext.outputFile = BUKKIT_JAR
-  outputs.file outputFile
-  doLast {
-    Util.downloadFile(BUKKIT_URL, outputFile)
+  from fileTree("${ext.mavenLocal}/org/clapper/minecraft/mclib/${ext.mclibVersion}/"), {
+    include "**/*.jar"
   }
-}
-
-task mclibJar {
-  ext.outputFile = MCLIB_JAR
-  outputs.file outputFile
-  doLast {
-    Util.downloadFile(MCLIB_URL, outputFile)
+  from fileTree("${ext.jcdc}/scala-library-plugin_2.10/2.10.2/jars"), {
+    include "*.jar"
   }
+  from fileTree("${ext.jcdc}/scala-plugin-api_2.10/0.3.1/jars"), {
+    include "scala-plugin-api_2.10-0.3.1.jar"
+  }
+  from fileTree("${ext.ivyCache}/org.scala-lang/scala-library/jars/") {
+    include "scala-library-2.10.2.jar"
+  }
+  from fileTree('lib'), {
+    include "*.jar"
+  }
+
+  into "/mc-nickname"
 }
 
 // See http://sethrylan.org/2013/07/02/scala-gradle-scalaconsole.html
