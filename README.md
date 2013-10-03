@@ -21,6 +21,12 @@ commands from a [Cygwin](http://www.cygwin.com/) shell.)
     $ cd mc-nickname
     $ mkdir -p $WORLD/lib
     $ cp scala-library-2.10.jar $WORLD/lib
+    $ cp mclib*.jar $WORLD/lib/mclib.jar
+    $ cp scala-minecraft-plugin-api*.jar mc-nickname.jar $WORLD/plugins
+
+    $ cd mc-nickname
+    $ mkdir -p $WORLD/lib
+    $ cp scala-library-2.10.jar $WORLD/lib
     $ cp mclib-0.2.jar $WORLD/lib/mclib.jar
     $ cp scala-library-plugin*.jar scala-plugin-api*.jar mc-nickname.jar $WORLD/plugins
 

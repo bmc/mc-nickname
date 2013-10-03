@@ -1,7 +1,7 @@
 package org.clapper.minecraft.nickname
 
-import jcdc.pluginfactory.{ScalaPlugin, CommandPlugin, ListenersPlugin}
-import jcdc.pluginfactory.Listeners._
+import com.joshcough.minecraft.{ScalaPlugin, CommandPlugin, ListenersPlugin}
+import com.joshcough.minecraft.Listeners._
 
 import org.bukkit.event.{EventHandler, Listener}
 import org.bukkit.event.player.AsyncPlayerChatEvent

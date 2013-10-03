@@ -1,7 +1,7 @@
 name: Nickname
 main: org.clapper.minecraft.nickname.NicknamePlugin
 author: "Brian M. Clapper"
-version: 0.02
+version: 0.3
 depend: [ScalaLibPlugin]
 commands:
   nk:
