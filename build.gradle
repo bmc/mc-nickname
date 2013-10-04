@@ -22,7 +22,7 @@ repositories {
   }
 }
 
-ext.version = "0.3"
+ext.version = "0.4"
 ext.mclibVersion = "0.4"
 ext.home = System.properties['user.home']
 
@@ -32,6 +32,18 @@ dependencies {
   compile "org.bukkit:bukkit:1.6.4-R0.1-SNAPSHOT"
   compile "org.bukkit:craftbukkit:1.6.4-R0.1-SNAPSHOT"
   compile "org.clapper.minecraft:mclib:${ext.mclibVersion}"
+  compile "org.clapper.minecraft:mclib:${ext.mclibVersion}"
+  compile "com.joshcough:scala-minecraft-plugin-api_2.10:0.3.2"
+
+  runtime("com.joshcough:scala-minecraft-plugin-api_2.10:0.3.2") {
+    transitive = false
+  }
+  runtime("org.clapper.minecraft:mclib:${ext.mclibVersion}") {
+    transitive = false
+  }
+  runtime("com.joshcough:scala-minecraft-scala-library_2.10:0.3.2") {
+    transitive = false
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -73,6 +85,7 @@ task zipJars(type: Zip) {
     include "scala-library*.jar"
     include "mc-nickname*.jar"
     include "scala-minecraft-plugin-api*.jar"
+    include "scala-minecraft-scala-library*.jar"
   }
 
   into "/mc-nickname"
@@ -91,8 +104,9 @@ task console(dependsOn: "scalaConsole")
 jar {
   manifest {
     def manifestCP = ['../lib/mclib.jar',
-                      'scala-library-plugin-2.10.0.jar',
-                      'scala-plugin-api_2.10-0.3.1.jar',
+		      '../lib/scala-library-2.10.2.jar',
+                      'scala-minecraft-scala-library-2.10-0.3.2.jar',
+                      'scala-minecraft-plugin-api_2.10-0.3.2.jar',
                       '../craftbukkit.jar']
     attributes 'Class-Path': manifestCP.join(" ")
   }

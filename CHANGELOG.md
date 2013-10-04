@@ -1,3 +1,8 @@
+0.4
+* Zip file now contains `scala-minecraft-scala-library.jar`, as well.
+* Fixed jar file manifest's classpath.
+* Added empty config.yml 
+
 0.3
 * Renamed versioning scheme.
 * Updated to latest version of Josh Cough's API. Updated `build.gradle`
