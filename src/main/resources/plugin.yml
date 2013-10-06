@@ -1,9 +1,0 @@
-name: Nickname
-main: org.clapper.minecraft.nickname.NicknamePlugin
-author: "Brian M. Clapper"
-version: 0.3
-depend: [ScalaLibPlugin]
-commands:
-  nk:
-    description: "Change or show the nickname you have on the server."
-    usage: "Usage: /nk [name]"

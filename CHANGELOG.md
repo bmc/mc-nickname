@@ -1,7 +1,12 @@
+0.5
+* `plugin.yml` is now generated.
+* Added `gradlew`, so building the project does not require manually
+  downloading Gradle first.
+
 0.4
 * Zip file now contains `scala-minecraft-scala-library.jar`, as well.
 * Fixed jar file manifest's classpath.
-* Added empty config.yml 
+* Added empty config.yml
 
 0.3
 * Renamed versioning scheme.

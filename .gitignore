@@ -4,3 +4,4 @@ build
 downloads/*.jar
 .idea
 *.iml
+src/main/resources/plugin.yml
