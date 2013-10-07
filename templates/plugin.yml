@@ -5,3 +5,8 @@ author: "@author@"
 version: @version@
 depend: [ScalaLibPlugin]
 load: "POSTWORLD"
+commands:
+  nk:
+    description: "Change or show the nickname you have on the server."
+    usage: "Usage: /nk [name]"
+
