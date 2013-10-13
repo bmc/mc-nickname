@@ -23,7 +23,7 @@ repositories {
   }
 }
 
-ext.version      = "0.5"
+project.version  = "0.5"
 ext.pluginClass  = "org.clapper.minecraft.chunkinfo.ChunkInfo"
 ext.pluginName   = "Nickname"
 ext.author       = "Brian M. Clapper"
@@ -78,7 +78,7 @@ task zipCleanup(type: Delete) {
 }
 
 task zipJars(type: Zip) {
-  archiveName "mc-nickname-${project.ext.version}.zip"
+  archiveName "mc-nickname-${project.version}.zip"
   includeEmptyDirs false
   finalizedBy 'zipCleanup'
 
@@ -101,7 +101,7 @@ task createPluginYaml(type: Copy) {
   }
   into 'src/main/resources'
   filter(ReplaceTokens, tokens: [
-    version: project.ext.version,
+    version: project.version,
     name:    project.ext.pluginName,
     class:   project.ext.pluginClass,
     genTime: new Date().format("yyyy/MM/dd HH:mm:ss"),
