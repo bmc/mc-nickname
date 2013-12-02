@@ -28,8 +28,8 @@ configurations {
   sshAntTask
 }
 
-version          = "0.5"
-ext.pluginClass  = "org.clapper.minecraft.chunkinfo.ChunkInfo"
+version          = "0.5.1"
+ext.pluginClass  = "org.clapper.minecraft.nickname.NicknamePlugin"
 ext.pluginName   = "Nickname"
 ext.author       = "Brian M. Clapper"
 ext.mclibVersion = "0.7"
@@ -127,7 +127,7 @@ task wrapper(type: Wrapper) {
 }
 
 // Publish the zip file to the remote server.
-task publish(dependsOn: 'zip') {
+task publish(dependsOn: 'zip') << {
 
   // Get the passphrase from the user.
   def console = System.console()
